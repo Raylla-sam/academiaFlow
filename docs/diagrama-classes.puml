@@ -1,0 +1,357 @@
+@startuml AcademiaFlow
+title AcademiaFlow: Diagrama de Classes do Domínio (revisado)
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam packageStyle rectangle
+hide empty members
+
+class Error <<JavaScript>>
+
+package dominio {
+
+  ' ===================== TIPOS =====================
+  package tipos {
+    class Origem <<type>> {
+      PROFESSOR | AUTOESTUDO
+    }
+    class ItemChecklist <<type>> {
+      + {readOnly} descricao: string
+      + {readOnly} feita: boolean
+    }
+    class EtapaTrabalho <<type>> {
+      + {readOnly} titulo: string
+      + {readOnly} responsavel: string
+      + {readOnly} entregue: boolean
+    }
+    class ItemDTO <<type>> {
+      + tipo: ATIVIDADE_PRATICA | TRABALHO_EM_GRUPO | LEMBRETE
+      + dados comuns e específicos do item
+      + datas como texto ISO
+    }
+    class WorkspaceDTO <<type>> {
+      + codigo, nome, professor: string
+      + salaOuLink?, horario?: string
+      + itens: ItemDTO[]
+    }
+    class EstudanteDTO <<type>> {
+      + nome: string
+      + workspaces: WorkspaceDTO[]
+    }
+  }
+
+  ' ===================== UTIL =====================
+  package util {
+    class datas <<utility>> {
+      + {static} diasEntre(a: Date, b: Date): number
+      + {static} somarDias(data: Date, dias: number): Date
+      + {static} inicioDoDia(data: Date): Date
+      + {static} fimDoDia(data: Date): Date
+      + {static} inicioDaSemana(data: Date): Date
+      + {static} inicioDoMes(data: Date): Date
+      + {static} estaEntre(data: Date, inicio: Date, fim: Date): boolean
+    }
+  }
+
+  ' ===================== ERROS =====================
+  package erros {
+    class ErroDominio {
+      + constructor(mensagem: string)
+    }
+  }
+
+  ' ===================== ITENS =====================
+  package itens {
+    abstract class ItemAcademico {
+      # id: string {readOnly}
+      # titulo: string
+      # descricao: string
+      # dataCriacao: Date {readOnly}
+      # workspaceId: string {readOnly}
+      --
+      + constructor(id: string, titulo: string, descricao: string, workspaceId: string, dataCriacao?: Date)
+      + obterId(): string
+      + obterTitulo(): string
+      + obterDescricao(): string
+      + obterDataCriacao(): Date
+      + obterWorkspaceId(): string
+      + alterarTitulo(titulo: string): void
+      + alterarDescricao(descricao: string): void
+      + obterResumo(): string
+      + contemTexto(palavra: string): boolean
+      # validarTitulo(titulo: string): string
+      # validarDescricao(descricao: string): string
+      .. métodos abstratos ..
+      + {abstract} obterCategoria(): string
+      + {abstract} estaPendente(agora?: Date): boolean
+      + {abstract} obterExibicaoFormatada(): string
+      + {abstract} paraDTO(): ItemDTO
+      .. ganchos polimórficos (com resposta padrão) ..
+      + estaConcluido(): boolean
+      + estaAtrasado(agora?: Date): boolean
+      + estaFixado(): boolean
+      + obterPrazo(): Date | undefined
+      + obterOrigem(): Origem | undefined
+      + obterDataConclusao(): Date | undefined
+      + contaComoAtividade(): boolean
+    }
+    note right of ItemAcademico
+      workspaceId = código do Workspace dono do item.
+      Título só com espaços lança ErroDominio.
+    end note
+
+    abstract class AtividadeComPrazo {
+      # dataLimite: Date
+      # concluida: boolean
+      # dataConclusao?: Date
+      --
+      + marcarComoConcluida(agora?: Date): void
+      + verificarSeAtrasada(agora?: Date): boolean
+      + calcularDiasRestantes(agora?: Date): number
+      + estaPendente(agora?: Date): boolean
+      + estaConcluido(): boolean
+      + estaAtrasado(agora?: Date): boolean
+      + obterPrazo(): Date
+      + obterDataConclusao(): Date | undefined
+      + contaComoAtividade(): boolean
+    }
+    note right of AtividadeComPrazo
+      dataLimite não pode ser anterior à dataCriacao.
+      O prazo vence no fim do dia.
+    end note
+
+    class AtividadePratica {
+      - origem: Origem
+      - checklist: ItemChecklist[]
+      - linkEntrega?: string
+      --
+      + adicionarPasso(descricao: string): void
+      + marcarPasso(indice: number, feita: boolean): void
+      + listarChecklist(): readonly ItemChecklist[]
+      + calcularProgressoChecklist(): number
+      + obterLinkEntrega(): string | undefined
+      + obterOrigem(): Origem
+      + obterCategoria(): string
+      + obterExibicaoFormatada(): string
+      + paraDTO(): ItemDTO
+    }
+
+    class TrabalhoEmGrupo {
+      - colegasDeEquipe: string[]
+      - papelDoAluno: string
+      - etapas: EtapaTrabalho[]
+      --
+      + adicionarColega(nome: string): void
+      + listarColegas(): readonly string[]
+      + obterPapelDoAluno(): string
+      + adicionarEtapa(titulo: string, responsavel: string): void
+      + marcarEtapaComoEntregue(indice: number): void
+      + listarEtapas(): readonly EtapaTrabalho[]
+      + calcularProgresso(): number
+      + marcarComoConcluida(agora?: Date): void
+      + estaPendente(agora?: Date): boolean
+      + obterCategoria(): string
+      + obterExibicaoFormatada(): string
+      + paraDTO(): ItemDTO
+    }
+    note right of TrabalhoEmGrupo
+      Proposta: só conclui se todas as etapas
+      estiverem entregues (grupo confirma).
+    end note
+
+    class Lembrete {
+      - dataAviso?: Date
+      - fixado: boolean
+      - etiqueta: string
+      - arquivado: boolean
+      --
+      + alternarFixacao(): void
+      + arquivar(): void
+      + obterEtiqueta(): string
+      + obterDataAviso(): Date | undefined
+      + estaFixado(): boolean
+      + estaPendente(agora?: Date): boolean
+      + obterCategoria(): string
+      + obterExibicaoFormatada(): string
+      + paraDTO(): ItemDTO
+    }
+    note right of Lembrete
+      estaPendente() só é true com dataAviso futura
+      e lembrete não arquivado.
+      Lembrete não conta como atividade.
+    end note
+  }
+
+  ' ===================== CONTRATOS =====================
+  package contratos {
+    interface FiltroItem {
+      + aceita(item: ItemAcademico): boolean
+    }
+    interface CriterioOrdenacao {
+      + comparar(a: ItemAcademico, b: ItemAcademico): number
+    }
+    interface RepositorioEstudante {
+      + carregar(): Estudante | null
+      + salvar(estudante: Estudante): void
+    }
+  }
+
+  ' ===================== FILTROS =====================
+  package filtros {
+    class FiltroPendentes {
+      + aceita(item: ItemAcademico): boolean
+    }
+    note right of FiltroPendentes
+      FiltroPendentes e FiltroConcluidos usam
+      contaComoAtividade() && ...
+    end note
+    class FiltroConcluidos {
+      + aceita(item: ItemAcademico): boolean
+    }
+    class FiltroLembretesFixados {
+      + aceita(item: ItemAcademico): boolean
+    }
+    class FiltroBuscaTexto {
+      - palavra: string
+      + constructor(palavra: string)
+      + aceita(item: ItemAcademico): boolean
+    }
+  }
+
+  ' ===================== ORDENACAO =====================
+  package ordenacao {
+    class OrdenarPorPrazo {
+      + comparar(a: ItemAcademico, b: ItemAcademico): number
+    }
+    class OrdenarPorDataCadastro {
+      + comparar(a: ItemAcademico, b: ItemAcademico): number
+    }
+    class OrdenarPorOrigem {
+      + comparar(a: ItemAcademico, b: ItemAcademico): number
+    }
+  }
+
+  ' ===================== AGREGADOS =====================
+  class Workspace {
+    - codigo: string {readOnly}
+    - nome: string
+    - professor: string
+    - salaOuLink?: string
+    - horario?: string
+    - itens: ItemAcademico[]
+    --
+    + constructor(codigo: string, nome: string, professor: string, salaOuLink?: string, horario?: string)
+    + obterCodigo(): string
+    + obterNome(): string
+    + obterProfessor(): string
+    + obterSalaOuLink(): string | undefined
+    + obterHorario(): string | undefined
+    + adicionarItem(item: ItemAcademico): void
+    + buscarPorId(id: string): ItemAcademico | undefined
+    + removerItem(id: string): boolean
+    + listarItens(): readonly ItemAcademico[]
+    + listarPendentes(agora?: Date): ItemAcademico[]
+    + listarConcluidos(): ItemAcademico[]
+    + listarAtrasados(agora?: Date): ItemAcademico[]
+    + totalAtividades(): number
+    + taxaConclusao(): number
+    + buscarPorTexto(palavra: string): ItemAcademico[]
+    + filtrar(filtro: FiltroItem): ItemAcademico[]
+    + ordenar(criterio: CriterioOrdenacao): ItemAcademico[]
+    + paraDTO(): WorkspaceDTO
+  }
+  note right of Workspace
+    adicionarItem lança ErroDominio se o workspaceId do item
+    for diferente do código ou se o id já existir.
+    ordenar devolve uma cópia ordenada; a lista interna não muda.
+    Listas pendentes e concluídos, totalAtividades e taxaConclusao
+    contam só itens com contaComoAtividade().
+  end note
+
+  class Estudante {
+    - nome: string
+    - workspaces: Workspace[]
+    --
+    + constructor(nome: string)
+    + obterNome(): string
+    + adicionarWorkspace(workspace: Workspace): void
+    + removerWorkspace(codigo: string): boolean
+    + buscarWorkspace(codigo: string): Workspace | undefined
+    + listarWorkspaces(): readonly Workspace[]
+    + listarTodosOsItens(): ItemAcademico[]
+    + paraDTO(): EstudanteDTO
+  }
+
+  class PainelGeral {
+    - estudante: Estudante
+    --
+    + constructor(estudante: Estudante)
+    + proximosPrazos(dias?: number, agora?: Date): ItemAcademico[]
+    + atividadesEmAtraso(agora?: Date): ItemAcademico[]
+    + lembretesFixados(): ItemAcademico[]
+    + concluidasNoPeriodo(inicio: Date, fim: Date): number
+    + pendentesPorDisciplina(): Map<string, number>
+  }
+
+  class FabricaItens {
+    + {static} criarItem(dados: ItemDTO): ItemAcademico
+    + {static} criarEstudante(dados: EstudanteDTO): Estudante
+  }
+}
+
+package visao {
+  class RepositorioLocalStorage {
+    - chave: string
+    + carregar(): Estudante | null
+    + salvar(estudante: Estudante): void
+  }
+  note right of RepositorioLocalStorage
+    Única classe que toca no localStorage.
+    Salvar: paraDTO() e JSON.stringify.
+    Carregar: JSON.parse e FabricaItens.
+  end note
+}
+
+' ===================== HERANÇA =====================
+ItemAcademico <|-- AtividadeComPrazo
+ItemAcademico <|-- Lembrete
+AtividadeComPrazo <|-- AtividadePratica
+AtividadeComPrazo <|-- TrabalhoEmGrupo
+Error <|-- ErroDominio
+
+' ===================== COMPOSIÇÃO =====================
+Estudante "1" *-- "0..*" Workspace : gerencia >
+Workspace "1" *-- "0..*" ItemAcademico : contém >
+AtividadePratica "1" *-- "0..*" ItemChecklist
+TrabalhoEmGrupo "1" *-- "0..*" EtapaTrabalho
+EstudanteDTO "1" *-- "0..*" WorkspaceDTO
+WorkspaceDTO "1" *-- "0..*" ItemDTO
+AtividadePratica ..> Origem : usa
+PainelGeral --> "1" Estudante : consulta >
+
+' ===================== CONTRATOS =====================
+FiltroItem <|.. FiltroPendentes
+FiltroItem <|.. FiltroConcluidos
+FiltroItem <|.. FiltroLembretesFixados
+FiltroItem <|.. FiltroBuscaTexto
+CriterioOrdenacao <|.. OrdenarPorPrazo
+CriterioOrdenacao <|.. OrdenarPorDataCadastro
+CriterioOrdenacao <|.. OrdenarPorOrigem
+RepositorioEstudante <|.. RepositorioLocalStorage
+
+' ===================== DEPENDÊNCIAS =====================
+Workspace ..> FiltroItem : usa
+Workspace ..> CriterioOrdenacao : usa
+FabricaItens ..> ItemAcademico : cria
+FabricaItens ..> Estudante : cria
+FabricaItens ..> ItemDTO : lê
+FabricaItens ..> EstudanteDTO : lê
+ItemAcademico ..> ItemDTO : gera
+Workspace ..> WorkspaceDTO : gera
+Estudante ..> EstudanteDTO : gera
+RepositorioLocalStorage ..> FabricaItens : usa
+RepositorioLocalStorage ..> EstudanteDTO : lê e grava
+AtividadeComPrazo ..> datas : usa
+PainelGeral ..> datas : usa
+ItemAcademico ..> ErroDominio : lança
+Workspace ..> ErroDominio : lança
+@enduml
