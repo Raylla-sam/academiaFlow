@@ -1,4 +1,4 @@
 export type ItemChecklist = {
-  descricao: string;
-  feita: boolean;
+ readonly descricao: string;
+  readonly feita: boolean;
 };

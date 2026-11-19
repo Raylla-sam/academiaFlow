@@ -1,5 +1,5 @@
 export type EtapaTrabalho = {
-  titulo: string;
-  responsavel: string;
-  entregue: boolean;
+ readonly titulo: string;
+  readonly responsavel: string;
+  readonly entregue: boolean;
 };
