@@ -17,7 +17,8 @@ npm start
 - docs/: diagrama de classes UML
 
 ## Integrantes
-- [Raylla] @Raylla-sam
-- [Hiago] @Hiagu
-- [Izabel] @Izabelett
-- [Ana beatriz] @AnaBeatrizDev-web
+
+- Raylla Sampaio [@Raylla-sam](https://github.com/Raylla-sam)
+- Hiago Medeiros [@Hiagu](https://github.com/Hiagu) 
+- Izabel Leticia [@Izabelett](https://github.com/Izabelett)
+- Ana Beatriz [@AnaBeatrizDev-web](https://github.com/AnaBeatrizDev-web)
