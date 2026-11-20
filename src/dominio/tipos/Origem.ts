@@ -1,0 +1,1 @@
+export type Origem = "PROFESSOR" | "AUTOESTUDO";
