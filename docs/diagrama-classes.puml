@@ -67,19 +67,21 @@ package dominio {
       # descricao: string
       # dataCriacao: Date {readOnly}
       # workspaceId: string {readOnly}
-      --
+    
       + constructor(id: string, titulo: string, descricao: string, workspaceId: string, dataCriacao?: Date)
-      + obterId(): string
+      + consultarIdentificador(): string
       + obterTitulo(): string
       + obterDescricao(): string
       + obterDataCriacao(): Date
       + obterWorkspaceId(): string
       + alterarTitulo(titulo: string): void
       + alterarDescricao(descricao: string): void
-      + obterResumo(): string
-      + contemTexto(palavra: string): boolean
+      + resumoBasico(): string
+      + contemTexto(texto: string): boolean
       # validarTitulo(titulo: string): string
       # validarDescricao(descricao: string): string
+      - validarIdentificador(valor: string): string
+      - validarWorkspaceId(valor: string): string
       .. métodos abstratos ..
       + {abstract} obterCategoria(): string
       + {abstract} estaPendente(agora?: Date): boolean
